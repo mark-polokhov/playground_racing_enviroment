@@ -49,7 +49,7 @@ public class CarController : MonoBehaviour
         horizontalInput = valueTurnAround;
     }
 
-    void FixedUpdate()
+    public void StepPhysics()
     {
         GetGear();
         CheckInput();
@@ -57,6 +57,7 @@ public class CarController : MonoBehaviour
         Brake();
         HandleSteering();
     }
+
     private void CheckInput()
     {
 
@@ -65,6 +66,7 @@ public class CarController : MonoBehaviour
         if (verticalInput == 0)
             brakeInput = Mathf.Abs(movingDirectional) * 0.001f;
     }
+
     private void GetGear()
     {
         currentSpeed = rb.velocity.magnitude;
@@ -84,6 +86,7 @@ public class CarController : MonoBehaviour
             key = "R";
         }
     }
+
     private void HandleMotor()
     {
         currentSpeed = rb.velocity.magnitude;
@@ -94,10 +97,16 @@ public class CarController : MonoBehaviour
             if ((key == "R") && (currentSpeed < gearRatios[maxGear + 1].maxSpeed)) wheel.WheelCollider.motorTorque = gearRatio * motorForce * verticalInput * 0.6f - currentSpeed;
             else if ((key != "R") && (currentSpeed > 0) && (currentSpeed < gearRatios[maxGear].maxSpeed)) wheel.WheelCollider.motorTorque = gearRatio * motorForce * verticalInput * 0.6f - currentSpeed;
             else wheel.WheelCollider.motorTorque = 0;
-            wheel.UpdateMeshPosition();
+            wheel.UpdateMeshPosition(); // ??? DELETE AND MOVE TO LATE UPDATE
         }
         speedup = wheels[0].WheelCollider.motorTorque;
     }
+
+    public bool IsDone()
+    {
+        return false; // ??? KOSTYL
+    }
+
 
     public bool IsMovingForward()
     {
@@ -125,6 +134,17 @@ public class CarController : MonoBehaviour
             }
         }
     }
+
+    public float GetSteering()
+    {
+        return Mathf.Clamp(horizontalInput, -1f, 1f);
+    }
+
+    public float GetThrottle()
+    {
+        return Mathf.Clamp(verticalInput, -1f, 1f);
+    }
+
     private void Brake()
     {
         foreach (Wheel wheel in wheels)
@@ -132,11 +152,13 @@ public class CarController : MonoBehaviour
             wheel.WheelCollider.brakeTorque = brakeInput * brakeForce * (wheel.IsForwardWheel ? 0.7f : 0.7f);
         }
     }
+
     private void SpeedCalculation()
     {
         for(int i = 1; i < maxGear; i++) gearRatios[i].maxSpeed = (gearRatios[maxGear].maxSpeed * gearRatios[maxGear].ratio * i) / (gearRatios[i].ratio * maxGear);
         gearRatios[maxGear + 1].maxSpeed = (gearRatios[maxGear].maxSpeed * gearRatios[maxGear].ratio) * 3/ (gearRatios[maxGear + 1].ratio * maxGear);
     }
+
     float GetGearRatio()
     {
         //Debug.Log($"Передача {key}");
@@ -148,6 +170,7 @@ public class CarController : MonoBehaviour
         Debug.LogError($"Передача {key} не найдена!");
         return 0f;
     }
+
     public float CurrentSpeed()
     {
         return currentSpeed;

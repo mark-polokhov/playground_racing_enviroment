@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package unity_racing;
 
-// Сервис для RL-окружения гонок
 service UnityRacingService {
   rpc Reset(ResetRequest) returns (ResetResponse);
   rpc Step(StepRequest) returns (StepResponse);
@@ -13,16 +12,14 @@ message ResetRequest {
 }
 
 message ResetResponse {
-  repeated float observation = 1;  // 7 float
+  repeated float observation = 1;
 }
 
 message StepRequest {
-  repeated float action = 1;  // 2 float: forward [-1,1], turn [-1,1]
+  repeated float action = 1;
 }
 
 message StepResponse {
-  repeated float observation = 1;  // 7 float
-  float reward = 2;
-  bool terminated = 3;
-  bool truncated = 4;
+  repeated float observation = 1;
+  bool Done = 2;
 }

@@ -104,3 +104,5 @@ Packages/packages-lock.json
 # Proto generator build artifacts
 _proto_gen/obj/
 _proto_gen/bin/
+
+*.dll*

@@ -1,263 +1,177 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class CarControllerAgent : MonoBehaviour
 {
+    [Header("Refs")]
+    [SerializeField] private CarController carController;
+    [SerializeField] private Rigidbody rb;
     [SerializeField] private TrackCheckpoints trackCheckpoints;
-    [SerializeField] private Transform spawnPosition;
-    [SerializeField] private int maxSteps = 3000;
-    private float forwardSpeedReward = 0.01f;
-    private float perStepPenalty = -0.001f;
-    [SerializeField] private float timer = 30f;
-    [SerializeField] private Text value;
-    [SerializeField] private Text checksGone;
-    [SerializeField] private Text allChecks;
-    [SerializeField] private Text rewardNum;
-    [SerializeField] private Text speedText;
-    [SerializeField] private CarSplineStats carSplineStats;
-    private bool start = false;
-    private int checksOver = 0;
+    [SerializeField] private CarSplineStats splineStats;
+    [SerializeField] private SplineCalculator spline;
 
-    private int stepCount = 0;
-    private CarController carController;
-    private SplineCalculator splineCalculator;
-    private Rigidbody rb;
-    private AIController aiController;
-    [SerializeField] private bool isPlayer = false;
-    private float spentTime = 0f;
-    private float totalErrors = 0f;
-    private float totalSpeed = 0f;
-    private int speedMeasurementsCount = 0;
+    [Header("Config")]
+    [SerializeField] private float maxSpeed = 50f;
+    [SerializeField] private float maxTrackWidth = 10f;
+    [SerializeField] private float maxCheckpointDist = 50f;
 
-    private float _cumulativeReward = 0f;
-    private bool _externalControl = false;
-    private bool _episodeDone = false;
+    private bool ckptChanged;
+    private bool wrongCkpt;
 
-    public void SetExternalControl(bool value) => _externalControl = value;
+    private int stepCount;
+    private int maxSteps = 3000;
 
-    private void Awake() {
-        carController = GetComponent<CarController>();
-        rb = GetComponent<Rigidbody>();
-        carSplineStats = GetComponent<CarSplineStats>();
-        splineCalculator = FindObjectOfType<SplineCalculator>();
-        aiController = GetComponent<AIController>();
-        if (rb != null)
-        {
-            Debug.Log("rb is not null");
-        }
-    }
-    private void Start()
+    private float cumulativeReward;
+    private bool done;
+
+    void Awake()
     {
-        checksOver = 0;
-        start = true;
-        trackCheckpoints.OnPlayerCorrectCheckpoint += TrackCheckpoints_OnCarCorrectCheckpoint;
-        trackCheckpoints.OnPlayerWrongCheckpoint += TrackCheckpoints_OnCarWrongCheckpoint;
+        if (!carController) carController = GetComponent<CarController>();
+        if (!rb) rb = GetComponent<Rigidbody>();
+        if (!splineStats) splineStats = GetComponent<CarSplineStats>();
+        if (!spline) spline = FindObjectOfType<SplineCalculator>();
     }
 
-    private void TrackCheckpoints_OnCarCorrectCheckpoint(object sender, TrackCheckpoints.CarCheckpointEventArgs e)
+    void Start()
     {
-        if (e.carTransform == transform){
-            AddReward(10f + ((float)checksOver / 5f));
-            timer += 1f;
-            checksOver++;
-        }
+        trackCheckpoints.OnPlayerCorrectCheckpoint += OnCorrect;
+        trackCheckpoints.OnPlayerWrongCheckpoint += OnWrong;
     }
 
-    public int ChecksOver()
+    private void OnCorrect(object sender, TrackCheckpoints.CarCheckpointEventArgs e)
     {
-        return checksOver;
+        if (e.carTransform == transform)
+            ckptChanged = true;
     }
 
-    public bool IsPlayer()
+    private void OnWrong(object sender, TrackCheckpoints.CarCheckpointEventArgs e)
     {
-        return isPlayer;
-    }
-    private void TrackCheckpoints_OnCarWrongCheckpoint(object sender, TrackCheckpoints.CarCheckpointEventArgs e)
-    {
-        if (e.carTransform == transform){
-            AddReward(-2f);
-            totalErrors -= 2f;
-        }
+        if (e.carTransform == transform)
+            wrongCkpt = true;
     }
 
-    private void FixedUpdate()
-    {
-        if (!start || _externalControl) return;
-
-        float forwardAmount, turnAmount;
-        if (isPlayer)
-        {
-            forwardAmount = Input.GetAxis("Vertical");
-            turnAmount = Input.GetAxis("Horizontal");
-        }
-        else if (aiController != null)
-        {
-            forwardAmount = aiController.InputVerticalAI();
-            turnAmount = aiController.InputHorizontalAI();
-        }
-        else
-        {
-            return;
-        }
-
-        ApplyAction(forwardAmount, turnAmount);
-    }
-
-    void Update()
-    {
-        if (start == true)
-        {
-            if (splineCalculator.GetDistanceToSpline(transform.position) < 2) AddReward(0.005f);
-            if ((carController.CurrentSpeed() * 3.6 >= 20f) && (carController.IsMovingForward())) AddReward(0.005f);
-            totalSpeed += carController.CurrentSpeed() * 3.6f;
-            speedMeasurementsCount++;
-            speedText.text = (carController.CurrentSpeed() * 3.6).ToString("0.0");
-            timer -= Time.deltaTime;
-            spentTime += Time.deltaTime;
-            value.text = timer.ToString("0.00");
-            checksGone.text = checksOver.ToString();
-            allChecks.text = TrackCheckpoints.GetChecks().ToString();
-            rewardNum.text = GetCumulativeReward().ToString("0.000");
-            if (timer <= 0)
-            {
-                Debug.Log(spentTime);
-                AddReward(-20f);
-                totalErrors -= 20f;
-                Debug.Log(totalErrors);
-                Debug.Log(GetCumulativeReward());
-                Debug.Log(totalSpeed/speedMeasurementsCount);
-                if (_externalControl)
-                    _episodeDone = true;
-                else
-                    EndEpisode();
-            } else if (checksOver == TrackCheckpoints.GetChecks())
-            {
-                Debug.Log(spentTime);
-                AddReward(5000f);
-                Debug.Log(totalErrors);
-                Debug.Log(GetCumulativeReward());
-                Debug.Log(totalSpeed/speedMeasurementsCount);
-                if (_externalControl)
-                    _episodeDone = true;
-                else
-                    EndEpisode();
-            }
-            if (carController.CurrentSpeed() < 0.5f)
-                AddReward(-0.001f);
-                totalErrors -= 0.001f;
-        }
-    }
-
-    public void OnEpisodeBegin()
-    {
-        transform.position = spawnPosition.position + new Vector3(Random.Range(-1f,1f),0,Random.Range(-1f,1f));
-        transform.forward = spawnPosition.forward;
-        trackCheckpoints.ResetCheckpoint(transform);
-        checksOver = 0;
-        timer = 30f;
-        spentTime = 0f;
-        totalErrors = 0f;
-
-        stepCount = 0;
-        _cumulativeReward = 0f;
-        _episodeDone = false;
-        rb.velocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
-    }
-    public float ProgressAgent()
-    {
-        return carSplineStats.GetProgressAlongSpline();
-    }
-
-    public void AddReward(float reward)
-    {
-        _cumulativeReward += reward;
-    }
-
-    public float GetCumulativeReward()
-    {
-        return _cumulativeReward;
-    }
-
-    public void EndEpisode()
-    {
-        _cumulativeReward = 0f;
-        OnEpisodeBegin();
-    }
-
-    /// <summary>
-    /// Возвращает вектор наблюдений для gRPC/TCP сервера (7 float).
-    /// Порядок: distance_to_spline, progress, angle_to_spline, curvature,
-    /// distance_to_checkpoint, direction_dot, speed.
-    /// </summary>
+    // ============================
+    // OBSERVATIONS
+    // ============================
     public float[] GetObservationVector()
     {
-        var obs = new float[7];
-        obs[0] = carSplineStats.GetDistanceToSpline();
-        obs[1] = carSplineStats.GetProgressAlongSpline();
-        obs[2] = carSplineStats.GetAngleToSplineDirection();
-        obs[3] = carSplineStats.GetLocalCurvature();
+        float[] obs = new float[18];
 
-        var nextCheckpoint = trackCheckpoints.GetNextCheckpoint(transform);
-        obs[4] = nextCheckpoint != null ? trackCheckpoints.GetDistanceToNextCheckpoint(transform) : 0f;
-        obs[5] = nextCheckpoint != null ? Vector3.Dot(transform.forward, nextCheckpoint.transform.forward) : 0f;
+        // --- 1. lateral distance ---
+        float latDist = splineStats.GetDistanceToSpline();
+        obs[0] = Mathf.Clamp(latDist / maxTrackWidth, -1f, 1f);
 
-        obs[6] = rb.velocity.magnitude;
+        // --- 2. progress ---
+        obs[1] = splineStats.GetProgressAlongSpline();
+
+        // --- 3-7 curvature ---
+        float cur = splineStats.GetLocalCurvature();
+        float cur5 = cur; // ??? NOT WORKING PROPERLY
+        float cur15 = cur; // ??? NOT WORKING PROPERLY
+
+        obs[2] = cur;
+        obs[3] = cur5;
+        obs[4] = cur15;
+        obs[5] = cur5 - cur;
+        obs[6] = cur15 - cur5;
+
+        // --- 8 distance to checkpoint ---
+        float distCkpt = trackCheckpoints.GetDistanceToNextCheckpoint(transform);
+        obs[7] = Mathf.Clamp(distCkpt / maxCheckpointDist, 0f, 1f);
+
+        // --- 9 direction dot ---
+        var ckpt = trackCheckpoints.GetNextCheckpoint(transform);
+        if (ckpt != null)
+        {
+            Vector3 dir = (ckpt.transform.position - transform.position).normalized;
+            obs[8] = Vector3.Dot(transform.forward, dir);
+        }
+        else obs[8] = 0f;
+
+        // --- 10 speed ---
+        float speed = rb.velocity.magnitude;
+        obs[9] = Mathf.Clamp(speed / maxSpeed, 0f, 1f);
+
+        // --- 11 steering ---
+        obs[10] = carController.GetSteering(); // [-1,1]
+
+        // --- 12 throttle ---
+        obs[11] = carController.GetThrottle(); // [-1,1]
+
+        // --- 13-14 local velocity ---
+        Vector3 localVel = transform.InverseTransformDirection(rb.velocity);
+        obs[12] = Mathf.Clamp(localVel.z / maxSpeed, -1f, 1f); // forward
+        obs[13] = Mathf.Clamp(localVel.x / maxSpeed, -1f, 1f); // lateral
+
+        // --- 15-16 boundaries ---
+        // float left = spline.GetDistanceToLeftBoundary(transform.position);
+        // float right = spline.GetDistanceToRightBoundary(transform.position);
+
+        // obs[14] = Mathf.Clamp(left / maxTrackWidth, 0f, 1f);
+        // obs[15] = Mathf.Clamp(right / maxTrackWidth, 0f, 1f);
+
+        obs[14] = 0.5f;
+        obs[15] = 0.5f;
+
+        // --- 17 checkpoint taken ---
+        obs[16] = ckptChanged ? 1f : 0f;
+
+        // --- 18 wrong checkpoint ---
+        obs[17] = wrongCkpt ? 1f : 0f;
+
+        // reset flags
+        ckptChanged = false;
+        wrongCkpt = false;
+
         return obs;
     }
 
-    /// <summary>
-    /// Применяет действие из внешнего клиента (gRPC/TCP).
-    /// forwardAmount, turnAmount в [-1, 1].
-    /// </summary>
-    public void ApplyAction(float forwardAmount, float turnAmount)
+    // ============================
+    // ACTION
+    // ============================
+    public void ApplyAction(float throttle, float steering)
     {
-        if (forwardAmount > 0f)
-            AddReward(forwardSpeedReward);
+        throttle = Mathf.Clamp(throttle, -1f, 1f);
+        steering = Mathf.Clamp(steering, -1f, 1f);
 
-        carController.SetInput(forwardAmount, turnAmount);
-        AddReward(perStepPenalty);
-        totalErrors -= perStepPenalty;
+        carController.SetInput(throttle, steering);
 
         stepCount++;
         if (stepCount >= maxSteps)
-        {
-            AddReward(-100f);
-            totalErrors -= 100f;
-            if (_externalControl)
-                _episodeDone = true;
-            else
-                EndEpisode();
-        }
+            done = true;
     }
 
-    /// <summary>
-    /// Эпизод завершён (таймер, все чекпоинты или maxSteps).
-    /// </summary>
-    public bool IsEpisodeDone()
+    // ============================
+    public bool IsDone()
     {
-        return _episodeDone || timer <= 0f || checksOver == TrackCheckpoints.GetChecks() || stepCount >= maxSteps;
+        return done;
     }
 
-    private void OnCollisionEnter(Collision other) {
-        if (other.gameObject.TryGetComponent<Wall>(out Wall wall))
-        {
-            AddReward(-10f);
-            totalErrors -= 10f;
-        }
-        if (other.gameObject.TryGetComponent<Player>(out Player player))
-        {
-            AddReward(-10f);
-            totalErrors -= 10f;
-        }
+    public void ResetAgent()
+    {
+        ResetAgent(transform.position, transform.rotation);
     }
-    private void OnCollisionStay(Collision other) {
-        if (other.gameObject.TryGetComponent<Wall>(out Wall wall))
-        {
-            AddReward(-0.1f);
-            totalErrors -= 0.1f;
-        }
+
+    public void ResetAgent(Vector3 pos, Quaternion rot)
+    {
+        transform.position = pos;
+        transform.rotation = rot;
+
+        rb.velocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+
+        trackCheckpoints.ResetCheckpoint(transform);
+
+        stepCount = 0;
+        done = false;
+        cumulativeReward = 0f;
+
+        ckptChanged = false;
+        wrongCkpt = false;
     }
+    // ===== LEGACY SUPPORT =====
+    public float GetCumulativeReward() => 0f;
+    public void SetExternalControl(bool v) { }
+    public bool IsPlayer() => false;
+    public float ProgressAgent() => splineStats.GetProgressAlongSpline();
+    public int ChecksOver() => 0;
 }

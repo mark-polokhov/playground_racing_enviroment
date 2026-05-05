@@ -20,6 +20,8 @@ public class UnityRacingGrpcServer : MonoBehaviour
 
     private void Awake()
     {
+        Physics.autoSimulation = false;
+        Time.fixedDeltaTime = 0.02f;
         if (agent == null)
             agent = FindObjectOfType<CarControllerAgent>();
     }
@@ -68,51 +70,48 @@ public class UnityRacingGrpcServer : MonoBehaviour
 
         public override Task<ResetResponse> Reset(ResetRequest request, ServerCallContext context)
         {
-            var response = UnityMainThreadDispatcher.Instance().EnqueueAndWait(() =>
+            var result = UnityMainThreadDispatcher.Instance().EnqueueAndWait(() =>
             {
-                UnityEngine.Random.InitState(request.Seed);
-                _agent.EndEpisode();
-                _agent.OnEpisodeBegin();
-                _owner.SetLastCumulativeReward(_agent.GetCumulativeReward());
+                Random.InitState(request.Seed);
 
-                var obs = _agent.GetObservationVector();
-                var resp = new ResetResponse();
-                resp.Observation.Add(obs);
-                return resp;
+                _agent.ResetAgent();
+
+                for (int i = 0; i < 5; i++)
+                    Physics.Simulate(Time.fixedDeltaTime);
+
+                return new ResetResponse
+                {
+                    Observation = { _agent.GetObservationVector() }
+                };
             });
-            return Task.FromResult(response);
+
+            return Task.FromResult(result);
         }
 
         public override Task<StepResponse> Step(StepRequest request, ServerCallContext context)
         {
-            float forward = 0f, turn = 0f;
-            if (request.Action.Count >= 2)
-            {
-                forward = Mathf.Clamp(request.Action[0], -1f, 1f);
-                turn = Mathf.Clamp(request.Action[1], -1f, 1f);
-            }
+            float throttle = request.Action[0];
+            float steering = request.Action[1];
 
-            var fwd = forward;
-            var trn = turn;
             var result = UnityMainThreadDispatcher.Instance().EnqueueAndWait(() =>
             {
-                _agent.ApplyAction(fwd, trn);
-                for (int i = 0; i < FixedFramesPerStep - 1; i++)
-                    Physics.Simulate(Time.fixedDeltaTime);
+                _agent.ApplyAction(throttle, steering);
 
-                float current = _agent.GetCumulativeReward();
-                float stepReward = current - _owner.GetLastCumulativeReward();
-                _owner.SetLastCumulativeReward(current);
-
-                var resp = new StepResponse
+                // FRAME SKIP
+                for (int i = 0; i < 5; i++)
                 {
-                    Reward = stepReward,
-                    Terminated = _agent.IsEpisodeDone(),
-                    Truncated = false
+                    Physics.Simulate(Time.fixedDeltaTime);
+                }
+
+                var obs = _agent.GetObservationVector();
+
+                return new StepResponse
+                {
+                    Done = _agent.IsDone(),
+                    Observation = { obs }
                 };
-                resp.Observation.Add(_agent.GetObservationVector());
-                return resp;
             });
+
             return Task.FromResult(result);
         }
     }

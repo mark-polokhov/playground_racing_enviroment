@@ -221,6 +221,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8433976364728837002, guid: 0f64254c78dfb17439b3105de65575ba, type: 3}
   m_PrefabInstance: {fileID: 319563492}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &241439997
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 241439999}
+  - component: {fileID: 241439998}
+  m_Layer: 0
+  m_Name: gRPCServer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &241439998
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 241439997}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e9e44f48b898294ab549bcdadfe8c5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  agent: {fileID: 0}
+  port: 50051
+--- !u!4 &241439999
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 241439997}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &244916311 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8433976364728837002, guid: 0f64254c78dfb17439b3105de65575ba, type: 3}
@@ -2255,10 +2301,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2902496c0120472b90269f94a0aec7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Record: 0
-  NumStepsToRecord: 0
-  DemonstrationName: DemoRaceSpline
-  DemonstrationDirectory: Assets/Demonstrations
 --- !u!114 &1042600240
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2302,24 +2344,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bb6b867a41448888c1cd4f99643ad71, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_SensorName: RayPerceptionSensor
-  m_DetectableTags:
-  - Player
-  - Checkpoint
-  - Wall
-  m_RaysPerDirection: 2
-  m_MaxRayDegrees: 90
-  m_SphereCastRadius: 0.5
-  m_RayLength: 10
-  m_RayLayerMask:
-    serializedVersion: 2
-    m_Bits: 4294967240
-  m_ObservationStacks: 1
-  m_AlternatingRayOrder: 0
-  rayHitColor: {r: 1, g: 0, b: 0, a: 1}
-  rayMissColor: {r: 1, g: 1, b: 1, a: 1}
-  m_StartVerticalOffset: 0
-  m_EndVerticalOffset: 0
 --- !u!1 &1049684644
 GameObject:
   m_ObjectHideFlags: 0
@@ -2445,24 +2469,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bb6b867a41448888c1cd4f99643ad71, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_SensorName: RayPerceptionSensor
-  m_DetectableTags:
-  - Player
-  - Checkpoint
-  - Wall
-  m_RaysPerDirection: 2
-  m_MaxRayDegrees: 90
-  m_SphereCastRadius: 0.5
-  m_RayLength: 10
-  m_RayLayerMask:
-    serializedVersion: 2
-    m_Bits: 4294967240
-  m_ObservationStacks: 1
-  m_AlternatingRayOrder: 0
-  rayHitColor: {r: 1, g: 0, b: 0, a: 1}
-  rayMissColor: {r: 1, g: 1, b: 1, a: 1}
-  m_StartVerticalOffset: 0
-  m_EndVerticalOffset: 0
 --- !u!114 &1121858221
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2475,10 +2481,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2902496c0120472b90269f94a0aec7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Record: 0
-  NumStepsToRecord: 0
-  DemonstrationName: DemoRaceSpline
-  DemonstrationDirectory: Assets/Demonstrations
 --- !u!114 &1121858222
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3094,24 +3096,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bb6b867a41448888c1cd4f99643ad71, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_SensorName: RayPerceptionSensor
-  m_DetectableTags:
-  - Player
-  - Checkpoint
-  - Wall
-  m_RaysPerDirection: 2
-  m_MaxRayDegrees: 90
-  m_SphereCastRadius: 0.5
-  m_RayLength: 10
-  m_RayLayerMask:
-    serializedVersion: 2
-    m_Bits: 4294967240
-  m_ObservationStacks: 1
-  m_AlternatingRayOrder: 0
-  rayHitColor: {r: 1, g: 0, b: 0, a: 1}
-  rayMissColor: {r: 1, g: 1, b: 1, a: 1}
-  m_StartVerticalOffset: 0
-  m_EndVerticalOffset: 0
 --- !u!114 &1450802615
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3124,10 +3108,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2902496c0120472b90269f94a0aec7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Record: 0
-  NumStepsToRecord: 0
-  DemonstrationName: DemoRaceSpline
-  DemonstrationDirectory: Assets/Demonstrations
 --- !u!114 &1450802616
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4810,24 +4790,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bb6b867a41448888c1cd4f99643ad71, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_SensorName: RayPerceptionSensor
-  m_DetectableTags:
-  - Player
-  - Checkpoint
-  - Wall
-  m_RaysPerDirection: 2
-  m_MaxRayDegrees: 90
-  m_SphereCastRadius: 0.5
-  m_RayLength: 10
-  m_RayLayerMask:
-    serializedVersion: 2
-    m_Bits: 4294967240
-  m_ObservationStacks: 1
-  m_AlternatingRayOrder: 0
-  rayHitColor: {r: 1, g: 0, b: 0, a: 1}
-  rayMissColor: {r: 1, g: 1, b: 1, a: 1}
-  m_StartVerticalOffset: 0
-  m_EndVerticalOffset: 0
 --- !u!114 &1729193271
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4840,10 +4802,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2902496c0120472b90269f94a0aec7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Record: 0
-  NumStepsToRecord: 0
-  DemonstrationName: DemoRaceSpline
-  DemonstrationDirectory: Assets/Demonstrations
 --- !u!114 &1729193272
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5584,24 +5542,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bb6b867a41448888c1cd4f99643ad71, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_SensorName: RayPerceptionSensor
-  m_DetectableTags:
-  - Player
-  - Checkpoint
-  - Wall
-  m_RaysPerDirection: 2
-  m_MaxRayDegrees: 90
-  m_SphereCastRadius: 0.5
-  m_RayLength: 10
-  m_RayLayerMask:
-    serializedVersion: 2
-    m_Bits: 4294967240
-  m_ObservationStacks: 1
-  m_AlternatingRayOrder: 0
-  rayHitColor: {r: 1, g: 0, b: 0, a: 1}
-  rayMissColor: {r: 1, g: 1, b: 1, a: 1}
-  m_StartVerticalOffset: 0
-  m_EndVerticalOffset: 0
 --- !u!114 &2109688395
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5614,10 +5554,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2902496c0120472b90269f94a0aec7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Record: 0
-  NumStepsToRecord: 0
-  DemonstrationName: DemoRaceSpline
-  DemonstrationDirectory: Assets/Demonstrations
 --- !u!114 &2109688396
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21589,3 +21525,4 @@ SceneRoots:
   - {fileID: 1333594898}
   - {fileID: 1975315472}
   - {fileID: 1492421034}
+  - {fileID: 241439999}
