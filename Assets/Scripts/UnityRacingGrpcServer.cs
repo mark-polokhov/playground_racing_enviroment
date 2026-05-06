@@ -107,7 +107,7 @@ public class UnityRacingGrpcServer : MonoBehaviour
 
                 return new StepResponse
                 {
-                    Done = _agent.IsDone(),
+                    // Done = _agent.IsDone(), // ???
                     Observation = { obs }
                 };
             });
