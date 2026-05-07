@@ -20,6 +20,7 @@ public class RacingGrpcServer : MonoBehaviour
 
     private void Awake()
     {
+        // ???
         Physics.autoSimulation = false;
         Time.fixedDeltaTime = 0.02f;
         if (agent == null)
@@ -42,20 +43,7 @@ public class RacingGrpcServer : MonoBehaviour
             Services = { Racing.RacingService.BindService(impl) },
             Ports = { new ServerPort("0.0.0.0", port, ServerCredentials.Insecure) }
         };
-        
-        try
-        {
-            Debug.Log("[gRPC] Starting server...");
-
-            _server.Start();
-
-            Debug.Log($"[gRPC] Server started on port {port}");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError("[gRPC] SERVER START FAILED");
-            Debug.LogError(e);
-        }
+        _server.Start();
 
         _lastCumulativeReward = agent.GetCumulativeReward();
         agent.SetExternalControl(true);
@@ -83,15 +71,14 @@ public class RacingGrpcServer : MonoBehaviour
 
         public override Task<ResetResponse> Reset(ResetRequest request, ServerCallContext context)
         {
-            Debug.Log("[GRPC] Reset called");
             var result = UnityMainThreadDispatcher.Instance().EnqueueAndWait(() =>
             {
                 Random.InitState(request.Seed);
 
                 _agent.ResetAgent();
 
-                for (int i = 0; i < 5; i++)
-                    Physics.Simulate(Time.fixedDeltaTime);
+                // for (int i = 0; i < 5; i++)
+                Physics.Simulate(Time.fixedDeltaTime);
 
                 return new ResetResponse
                 {
@@ -102,7 +89,9 @@ public class RacingGrpcServer : MonoBehaviour
             return Task.FromResult(result);
         }
 
-        public override Task<StepResponse> Step(StepRequest request, ServerCallContext context)
+        public override Task<StepResponse> Step(
+            StepRequest request,
+            ServerCallContext context)
         {
             float throttle = request.Action[0];
             float steering = request.Action[1];
@@ -111,17 +100,15 @@ public class RacingGrpcServer : MonoBehaviour
             {
                 _agent.ApplyAction(throttle, steering);
 
-                // FRAME SKIP
                 for (int i = 0; i < 5; i++)
                 {
-                    Physics.Simulate(Time.fixedDeltaTime);
+                    _agent.SimulateStep();
                 }
 
                 var obs = _agent.GetObservationVector();
 
                 return new StepResponse
                 {
-                    // Done = _agent.IsDone(), // ??? KOSTYL
                     Observation = { obs }
                 };
             });

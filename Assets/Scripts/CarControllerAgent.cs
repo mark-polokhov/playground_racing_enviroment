@@ -20,15 +20,21 @@ public class CarControllerAgent : MonoBehaviour
     private int stepCount;
     private int maxSteps = 3000;
 
-    private float cumulativeReward;
     private bool done;
 
     void Awake()
     {
-        if (!carController) carController = GetComponent<CarController>();
-        if (!rb) rb = GetComponent<Rigidbody>();
-        if (!splineStats) splineStats = GetComponent<CarSplineStats>();
-        if (!spline) spline = FindObjectOfType<SplineCalculator>();
+        if (!carController)
+            carController = GetComponent<CarController>();
+
+        if (!rb)
+            rb = GetComponent<Rigidbody>();
+
+        if (!splineStats)
+            splineStats = GetComponent<CarSplineStats>();
+
+        if (!spline)
+            spline = FindObjectOfType<SplineCalculator>();
     }
 
     void Start()
@@ -49,98 +55,98 @@ public class CarControllerAgent : MonoBehaviour
             wrongCkpt = true;
     }
 
-    // ============================
+    // =====================================================
     // OBSERVATIONS
-    // ============================
+    // =====================================================
+
     public float[] GetObservationVector()
     {
         float[] obs = new float[18];
 
-        // --- 1. lateral distance ---
         float latDist = splineStats.GetDistanceToSpline();
         obs[0] = Mathf.Clamp(latDist / maxTrackWidth, -1f, 1f);
 
-        // --- 2. progress ---
         obs[1] = splineStats.GetProgressAlongSpline();
 
-        // --- 3-7 curvature ---
         float cur = splineStats.GetLocalCurvature();
-        float cur5 = cur; // ??? NOT WORKING PROPERLY
-        float cur15 = cur; // ??? NOT WORKING PROPERLY
 
         obs[2] = cur;
-        obs[3] = cur5;
-        obs[4] = cur15;
-        obs[5] = cur5 - cur;
-        obs[6] = cur15 - cur5;
+        obs[3] = cur;
+        obs[4] = cur;
+        obs[5] = 0f;
+        obs[6] = 0f;
 
-        // --- 8 distance to checkpoint ---
         float distCkpt = trackCheckpoints.GetDistanceToNextCheckpoint(transform);
         obs[7] = Mathf.Clamp(distCkpt / maxCheckpointDist, 0f, 1f);
 
-        // --- 9 direction dot ---
         var ckpt = trackCheckpoints.GetNextCheckpoint(transform);
+
         if (ckpt != null)
         {
-            Vector3 dir = (ckpt.transform.position - transform.position).normalized;
+            Vector3 dir =
+                (ckpt.transform.position - transform.position).normalized;
+
             obs[8] = Vector3.Dot(transform.forward, dir);
         }
-        else obs[8] = 0f;
+        else
+        {
+            obs[8] = 0f;
+        }
 
-        // --- 10 speed ---
         float speed = rb.velocity.magnitude;
         obs[9] = Mathf.Clamp(speed / maxSpeed, 0f, 1f);
 
-        // --- 11 steering ---
-        obs[10] = carController.GetSteering(); // [-1,1]
+        obs[10] = carController.GetSteering();
+        obs[11] = carController.GetThrottle();
 
-        // --- 12 throttle ---
-        obs[11] = carController.GetThrottle(); // [-1,1]
+        Vector3 localVel =
+            transform.InverseTransformDirection(rb.velocity);
 
-        // --- 13-14 local velocity ---
-        Vector3 localVel = transform.InverseTransformDirection(rb.velocity);
-        obs[12] = Mathf.Clamp(localVel.z / maxSpeed, -1f, 1f); // forward
-        obs[13] = Mathf.Clamp(localVel.x / maxSpeed, -1f, 1f); // lateral
-
-        // --- 15-16 boundaries ---
-        // float left = spline.GetDistanceToLeftBoundary(transform.position);
-        // float right = spline.GetDistanceToRightBoundary(transform.position);
-
-        // obs[14] = Mathf.Clamp(left / maxTrackWidth, 0f, 1f);
-        // obs[15] = Mathf.Clamp(right / maxTrackWidth, 0f, 1f);
+        obs[12] = Mathf.Clamp(localVel.z / maxSpeed, -1f, 1f);
+        obs[13] = Mathf.Clamp(localVel.x / maxSpeed, -1f, 1f);
 
         obs[14] = 0.5f;
         obs[15] = 0.5f;
 
-        // --- 17 checkpoint taken ---
         obs[16] = ckptChanged ? 1f : 0f;
-
-        // --- 18 wrong checkpoint ---
         obs[17] = wrongCkpt ? 1f : 0f;
 
-        // reset flags
         ckptChanged = false;
         wrongCkpt = false;
 
         return obs;
     }
 
-    // ============================
+    // =====================================================
     // ACTION
-    // ============================
+    // =====================================================
+
     public void ApplyAction(float throttle, float steering)
     {
         throttle = Mathf.Clamp(throttle, -1f, 1f);
         steering = Mathf.Clamp(steering, -1f, 1f);
 
         carController.SetInput(throttle, steering);
+    }
+
+    // =====================================================
+    // MANUAL PHYSICS STEP
+    // =====================================================
+
+    public void SimulateStep()
+    {
+        carController.StepPhysics();
+
+        Physics.Simulate(Time.fixedDeltaTime);
 
         stepCount++;
+
         if (stepCount >= maxSteps)
             done = true;
     }
 
-    // ============================
+    // =====================================================
+
     public bool IsDone()
     {
         return done;
@@ -163,15 +169,21 @@ public class CarControllerAgent : MonoBehaviour
 
         stepCount = 0;
         done = false;
-        cumulativeReward = 0f;
 
         ckptChanged = false;
         wrongCkpt = false;
     }
-    // ===== LEGACY SUPPORT =====
+
+    // ===== LEGACY =====
+
     public float GetCumulativeReward() => 0f;
+
     public void SetExternalControl(bool v) { }
+
     public bool IsPlayer() => false;
-    public float ProgressAgent() => splineStats.GetProgressAlongSpline();
+
+    public float ProgressAgent()
+        => splineStats.GetProgressAlongSpline();
+
     public int ChecksOver() => 0;
 }
