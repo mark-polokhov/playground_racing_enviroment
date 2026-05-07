@@ -18,7 +18,10 @@ public class CarControllerAgent : MonoBehaviour
     private bool wrongCkpt;
 
     private int stepCount;
-    private int maxSteps = 3000;
+    private int maxSteps = 300000;
+
+    private Vector3 startPosition;
+    private Quaternion startRotation;
 
     private bool done;
 
@@ -35,6 +38,9 @@ public class CarControllerAgent : MonoBehaviour
 
         if (!spline)
             spline = FindObjectOfType<SplineCalculator>();
+
+        startPosition = transform.position;
+        startRotation = transform.rotation;
     }
 
     void Start()
@@ -93,14 +99,22 @@ public class CarControllerAgent : MonoBehaviour
             obs[8] = 0f;
         }
 
-        float speed = rb.velocity.magnitude;
-        obs[9] = Mathf.Clamp(speed / maxSpeed, 0f, 1f);
+        // float speed = rb.velocity.magnitude;
+        // obs[9] = Mathf.Clamp(speed / maxSpeed, 0f, 1f);
 
-        obs[10] = carController.GetSteering();
-        obs[11] = carController.GetThrottle();
+        // obs[10] = carController.GetSteering();
+        // obs[11] = carController.GetThrottle();
 
         Vector3 localVel =
             transform.InverseTransformDirection(rb.velocity);
+
+        float forwardSpeed = localVel.z;
+        float lateralSpeed = localVel.x;
+
+        obs[9] = Mathf.Clamp(forwardSpeed / maxSpeed, -1f, 1f);
+        obs[10] = Mathf.Clamp(lateralSpeed / maxSpeed, -1f, 1f);
+        // obs[11] = EMPTY
+
 
         obs[12] = Mathf.Clamp(localVel.z / maxSpeed, -1f, 1f);
         obs[13] = Mathf.Clamp(localVel.x / maxSpeed, -1f, 1f);
@@ -154,7 +168,7 @@ public class CarControllerAgent : MonoBehaviour
 
     public void ResetAgent()
     {
-        ResetAgent(transform.position, transform.rotation);
+        ResetAgent(startPosition, startRotation);
     }
 
     public void ResetAgent(Vector3 pos, Quaternion rot)
