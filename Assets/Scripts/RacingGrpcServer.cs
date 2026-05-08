@@ -100,10 +100,8 @@ public class RacingGrpcServer : MonoBehaviour
             {
                 _agent.ApplyAction(throttle, steering);
 
-                for (int i = 0; i < 5; i++)
-                {
-                    _agent.SimulateStep();
-                }
+                // for (int i = 0; i < 5; i++)
+                _agent.SimulateStep();
 
                 var obs = _agent.GetObservationVector();
 

@@ -23,6 +23,8 @@ public class CarControllerAgent : MonoBehaviour
     private Vector3 startPosition;
     private Quaternion startRotation;
 
+    private bool isTouchingWall;
+
     private bool done;
 
     void Awake()
@@ -99,12 +101,6 @@ public class CarControllerAgent : MonoBehaviour
             obs[8] = 0f;
         }
 
-        // float speed = rb.velocity.magnitude;
-        // obs[9] = Mathf.Clamp(speed / maxSpeed, 0f, 1f);
-
-        // obs[10] = carController.GetSteering();
-        // obs[11] = carController.GetThrottle();
-
         Vector3 localVel =
             transform.InverseTransformDirection(rb.velocity);
 
@@ -113,17 +109,21 @@ public class CarControllerAgent : MonoBehaviour
 
         obs[9] = Mathf.Clamp(forwardSpeed / maxSpeed, -1f, 1f);
         obs[10] = Mathf.Clamp(lateralSpeed / maxSpeed, -1f, 1f);
-        // obs[11] = EMPTY
 
+        float speed = rb.velocity.magnitude;
+        obs[11] = Mathf.Clamp(speed / maxSpeed, 0f, 1f);
 
-        obs[12] = Mathf.Clamp(localVel.z / maxSpeed, -1f, 1f);
-        obs[13] = Mathf.Clamp(localVel.x / maxSpeed, -1f, 1f);
+        // obs[12] = Mathf.Clamp(localVel.z / maxSpeed, -1f, 1f);
+        // obs[13] = Mathf.Clamp(localVel.x / maxSpeed, -1f, 1f);
+    
+        obs[13] = isTouchingWall ? 1f : 0f;
 
         obs[14] = 0.5f;
         obs[15] = 0.5f;
 
         obs[16] = ckptChanged ? 1f : 0f;
         obs[17] = wrongCkpt ? 1f : 0f;
+
 
         ckptChanged = false;
         wrongCkpt = false;
@@ -186,6 +186,30 @@ public class CarControllerAgent : MonoBehaviour
 
         ckptChanged = false;
         wrongCkpt = false;
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Wall"))
+        {
+            isTouchingWall = true;
+        }
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Wall"))
+        {
+            isTouchingWall = true;
+        }
+    }
+
+    private void OnCollisionExit(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Wall"))
+        {
+            isTouchingWall = false;
+        }
     }
 
     // ===== LEGACY =====
