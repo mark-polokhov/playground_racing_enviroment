@@ -13,7 +13,9 @@ public class CarControllerAgent : MonoBehaviour
     [SerializeField] private float maxSpeed = 50f;
     [SerializeField] private float maxTrackWidth = 10f;
     [SerializeField] private float maxCheckpointDist = 50f;
-
+    
+    [SerializeField] private bool isPlayer = false;
+    [SerializeField] private Transform spawnPosition;
     private bool ckptChanged;
     private bool wrongCkpt;
 
@@ -23,23 +25,28 @@ public class CarControllerAgent : MonoBehaviour
     private Vector3 startPosition;
     private Quaternion startRotation;
 
+    private int previousSplineIndex = 0;
+    private int currentSplineIndex = 0;
+    
+    private bool start = false;
+    private int checksOver = 0;
+
     private bool isTouchingWall;
 
     private bool done;
 
+    private AIController aiController;
+
+    private bool _episodeDone = false;
+    private bool _externalControl = false;
+
     void Awake()
     {
-        if (!carController)
-            carController = GetComponent<CarController>();
-
-        if (!rb)
-            rb = GetComponent<Rigidbody>();
-
-        if (!splineStats)
-            splineStats = GetComponent<CarSplineStats>();
-
-        if (!spline)
-            spline = FindObjectOfType<SplineCalculator>();
+        carController = GetComponent<CarController>();
+        rb = GetComponent<Rigidbody>();
+        splineStats = GetComponent<CarSplineStats>();
+        spline = FindObjectOfType<SplineCalculator>();
+        aiController = GetComponent<AIController>();
 
         startPosition = transform.position;
         startRotation = transform.rotation;
@@ -47,6 +54,8 @@ public class CarControllerAgent : MonoBehaviour
 
     void Start()
     {
+        checksOver = 0;
+        start = true;
         trackCheckpoints.OnPlayerCorrectCheckpoint += OnCorrect;
         trackCheckpoints.OnPlayerWrongCheckpoint += OnWrong;
     }
@@ -54,7 +63,11 @@ public class CarControllerAgent : MonoBehaviour
     private void OnCorrect(object sender, TrackCheckpoints.CarCheckpointEventArgs e)
     {
         if (e.carTransform == transform)
+        {
             ckptChanged = true;
+            checksOver++;
+        }
+
     }
 
     private void OnWrong(object sender, TrackCheckpoints.CarCheckpointEventArgs e)
@@ -63,30 +76,89 @@ public class CarControllerAgent : MonoBehaviour
             wrongCkpt = true;
     }
 
+
+    private void FixedUpdate()
+    {
+        if (!start || _externalControl) return;
+
+        float forwardAmount, turnAmount;
+        if (isPlayer)
+        {
+            forwardAmount = Input.GetAxis("Vertical");
+            turnAmount = Input.GetAxis("Horizontal");
+        }
+        else if (aiController != null)
+        {
+            forwardAmount = aiController.InputVerticalAI();
+            turnAmount = aiController.InputHorizontalAI();
+        }
+        else
+        {
+            return;
+        }
+
+        ApplyAction(forwardAmount, turnAmount);
+    }
+
+    void Update()
+    {
+        
+    }
+
+    public void OnEpisodeBegin()
+    {
+        transform.position = spawnPosition.position + new Vector3(Random.Range(-1f,1f),0,Random.Range(-1f,1f));
+        transform.forward = spawnPosition.forward;
+        trackCheckpoints.ResetCheckpoint(transform);
+        checksOver = 0;
+
+        stepCount = 0;
+        _episodeDone = false;
+        rb.velocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+    }
+
+    public float ProgressAgent()
+    {
+        return splineStats.GetProgressAlongSpline();
+    }
+
+    public void EndEpisode()
+    {
+        OnEpisodeBegin();
+    }
+
+    public bool IsEpisodeDone()
+    {
+        return _episodeDone || checksOver == TrackCheckpoints.GetChecks() || stepCount >= maxSteps;
+    }
+
     // =====================================================
     // OBSERVATIONS
     // =====================================================
 
     public float[] GetObservationVector()
     {
-        float[] obs = new float[18];
+        float[] obs = new float[12];
 
         float latDist = splineStats.GetDistanceToSpline();
         obs[0] = Mathf.Clamp(latDist / maxTrackWidth, -1f, 1f);
-
+        // obs[1] = GetForwardProgressDelta();
         obs[1] = splineStats.GetProgressAlongSpline();
+        obs[2] = splineStats.GetAngleToSplineDirection();
+        obs[3] = splineStats.GetLocalCurvature();
 
-        float cur = splineStats.GetLocalCurvature();
+        // float cur = splineStats.GetLocalCurvature();
+        // obs[4] = cur;
 
-        obs[2] = cur;
-        obs[3] = cur;
-        obs[4] = cur;
-        obs[5] = 0f;
-        obs[6] = 0f;
+        // obs[5] = splineStats.GetForwardDotSplineTangent();
+
+        obs[4] = ckptChanged ? 1f : 0f;
+        obs[5] = wrongCkpt ? 1f : 0f;
 
         float distCkpt = trackCheckpoints.GetDistanceToNextCheckpoint(transform);
-        obs[7] = Mathf.Clamp(distCkpt / maxCheckpointDist, 0f, 1f);
-
+        obs[6] = Mathf.Clamp(distCkpt / maxCheckpointDist, 0f, 1f);
+        
         var ckpt = trackCheckpoints.GetNextCheckpoint(transform);
 
         if (ckpt != null)
@@ -94,12 +166,15 @@ public class CarControllerAgent : MonoBehaviour
             Vector3 dir =
                 (ckpt.transform.position - transform.position).normalized;
 
-            obs[8] = Vector3.Dot(transform.forward, dir);
+            obs[7] = Vector3.Dot(transform.forward, dir);
         }
         else
         {
-            obs[8] = 0f;
+            obs[7] = 0f;
         }
+
+        float speed = rb.velocity.magnitude;
+        obs[8] = Mathf.Clamp(speed / maxSpeed, 0f, 1f);
 
         Vector3 localVel =
             transform.InverseTransformDirection(rb.velocity);
@@ -110,20 +185,7 @@ public class CarControllerAgent : MonoBehaviour
         obs[9] = Mathf.Clamp(forwardSpeed / maxSpeed, -1f, 1f);
         obs[10] = Mathf.Clamp(lateralSpeed / maxSpeed, -1f, 1f);
 
-        float speed = rb.velocity.magnitude;
-        obs[11] = Mathf.Clamp(speed / maxSpeed, 0f, 1f);
-
-        // obs[12] = Mathf.Clamp(localVel.z / maxSpeed, -1f, 1f);
-        // obs[13] = Mathf.Clamp(localVel.x / maxSpeed, -1f, 1f);
-    
-        obs[13] = isTouchingWall ? 1f : 0f;
-
-        obs[14] = 0.5f;
-        obs[15] = 0.5f;
-
-        obs[16] = ckptChanged ? 1f : 0f;
-        obs[17] = wrongCkpt ? 1f : 0f;
-
+        obs[11] = isTouchingWall ? 1f : 0f;
 
         ckptChanged = false;
         wrongCkpt = false;
@@ -137,27 +199,33 @@ public class CarControllerAgent : MonoBehaviour
 
     public void ApplyAction(float throttle, float steering)
     {
-        throttle = Mathf.Clamp(throttle, -1f, 1f);
-        steering = Mathf.Clamp(steering, -1f, 1f);
-
         carController.SetInput(throttle, steering);
+
+        stepCount++;
+        if (stepCount >= maxSteps)
+        {
+            if (_externalControl)
+                _episodeDone = true;
+            else
+                EndEpisode();
+        }
     }
 
     // =====================================================
     // MANUAL PHYSICS STEP
     // =====================================================
 
-    public void SimulateStep()
-    {
-        carController.StepPhysics();
+    // public void SimulateStep()
+    // {
+    //     carController.StepPhysics();
 
-        Physics.Simulate(Time.fixedDeltaTime);
+    //     Physics.Simulate(Time.fixedDeltaTime);
 
-        stepCount++;
+    //     stepCount++;
 
-        if (stepCount >= maxSteps)
-            done = true;
-    }
+    //     if (stepCount >= maxSteps)
+    //         done = true;
+    // }
 
     // =====================================================
 
@@ -166,27 +234,27 @@ public class CarControllerAgent : MonoBehaviour
         return done;
     }
 
-    public void ResetAgent()
-    {
-        ResetAgent(startPosition, startRotation);
-    }
+    // public void ResetAgent()
+    // {
+    //     ResetAgent(startPosition, startRotation);
+    // }
 
-    public void ResetAgent(Vector3 pos, Quaternion rot)
-    {
-        transform.position = pos;
-        transform.rotation = rot;
+    // public void ResetAgent(Vector3 pos, Quaternion rot)
+    // {
+    //     transform.position = pos;
+    //     transform.rotation = rot;
 
-        rb.velocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
+    //     rb.velocity = Vector3.zero;
+    //     rb.angularVelocity = Vector3.zero;
 
-        trackCheckpoints.ResetCheckpoint(transform);
+    //     trackCheckpoints.ResetCheckpoint(transform);
 
-        stepCount = 0;
-        done = false;
+    //     stepCount = 0;
+    //     done = false;
 
-        ckptChanged = false;
-        wrongCkpt = false;
-    }
+    //     ckptChanged = false;
+    //     wrongCkpt = false;
+    // }
 
     private void OnCollisionEnter(Collision collision)
     {
@@ -212,16 +280,34 @@ public class CarControllerAgent : MonoBehaviour
         }
     }
 
+    public float GetForwardProgressDelta()
+    {
+        int totalPoints = spline.splinePoints.Length;
+
+        currentSplineIndex = splineStats.GetClosestSplineIndex();
+
+        int delta = currentSplineIndex - previousSplineIndex;
+
+        // Обработка перехода через финиш
+        if (delta > totalPoints / 2)
+            delta -= totalPoints;
+
+        if (delta < -totalPoints / 2)
+            delta += totalPoints;
+
+        previousSplineIndex = currentSplineIndex;
+
+        // Нормализуем
+        return (float)delta / totalPoints;
+    }
+
     // ===== LEGACY =====
 
     public float GetCumulativeReward() => 0f;
 
-    public void SetExternalControl(bool v) { }
+    public void SetExternalControl(bool value) => _externalControl = value;
 
-    public bool IsPlayer() => false;
+    public bool IsPlayer() => isPlayer;
 
-    public float ProgressAgent()
-        => splineStats.GetProgressAlongSpline();
-
-    public int ChecksOver() => 0;
+    public int ChecksOver() => checksOver;
 }

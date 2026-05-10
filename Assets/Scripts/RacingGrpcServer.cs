@@ -16,13 +16,9 @@ public class RacingGrpcServer : MonoBehaviour
 
     private Server _server;
     private float _lastCumulativeReward;
-    private const int FixedFramesPerStep = 1;
 
     private void Awake()
     {
-        // ???
-        Physics.autoSimulation = false;
-        Time.fixedDeltaTime = 0.02f;
         if (agent == null)
             agent = FindObjectOfType<CarControllerAgent>();
     }
@@ -45,7 +41,6 @@ public class RacingGrpcServer : MonoBehaviour
         };
         _server.Start();
 
-        _lastCumulativeReward = agent.GetCumulativeReward();
         agent.SetExternalControl(true);
         Debug.Log($"[RacingGrpcServer] gRPC server listening on port {port}");
     }
@@ -54,9 +49,6 @@ public class RacingGrpcServer : MonoBehaviour
     {
         _server?.ShutdownAsync().Wait();
     }
-
-    internal void SetLastCumulativeReward(float value) => _lastCumulativeReward = value;
-    internal float GetLastCumulativeReward() => _lastCumulativeReward;
 
     private sealed class RacingServiceImpl : Racing.RacingService.RacingServiceBase
     {
@@ -73,12 +65,10 @@ public class RacingGrpcServer : MonoBehaviour
         {
             var result = UnityMainThreadDispatcher.Instance().EnqueueAndWait(() =>
             {
-                Random.InitState(request.Seed);
+                UnityEngine.Random.InitState(request.Seed);
 
-                _agent.ResetAgent();
-
-                // for (int i = 0; i < 5; i++)
-                Physics.Simulate(Time.fixedDeltaTime);
+                _agent.EndEpisode();
+                _agent.OnEpisodeBegin();
 
                 return new ResetResponse
                 {
@@ -99,9 +89,6 @@ public class RacingGrpcServer : MonoBehaviour
             var result = UnityMainThreadDispatcher.Instance().EnqueueAndWait(() =>
             {
                 _agent.ApplyAction(throttle, steering);
-
-                // for (int i = 0; i < 5; i++)
-                _agent.SimulateStep();
 
                 var obs = _agent.GetObservationVector();
 
